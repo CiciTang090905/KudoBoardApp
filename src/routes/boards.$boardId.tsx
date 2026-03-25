@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { INITIAL_BOARDS } from "@/data/boards";
 import type { Kudo } from "@/data/types";
-import { useReducer } from "react"; // 👀
+import { useEffect, useReducer } from "react";
 import AddKudoForm from "@/components/ui/add-kudo-form";
-import KudoCard from "@/components/ui/kudo-card"; // 👀
-import { kudosReducer } from "@/reducers/kudos"; // 👀
+import KudoCard from "@/components/ui/kudo-card";
+import { boardsReducer } from "@/reducers/boards";
+import { loadBoards, saveBoards } from "@/data/board-storage";
+
+  //pass defined function, and initial state
+  //returns the current state and a dispatch function.
+  // Calling dispatch({ type: "added", kudo })
+  // sends the action to the reducer, which returns the new state, and React re-renders.
 
 export const Route = createFileRoute("/boards/$boardId")({
   component: BoardPage,
@@ -12,12 +17,14 @@ export const Route = createFileRoute("/boards/$boardId")({
 
 function BoardPage() {
   const { boardId } = Route.useParams();
-  const board = INITIAL_BOARDS.find((b) => b.id === boardId);
 
-  const [kudos, dispatch] = useReducer(kudosReducer, board?.kudos ?? []); //pass defined function, and initial state
-  //returns the current state and a dispatch function.
-  // Calling dispatch({ type: "added", kudo })
-  // sends the action to the reducer, which returns the new state, and React re-renders.
+  const [boards, dispatch] = useReducer(boardsReducer, null, loadBoards);
+
+  useEffect(() => {
+    saveBoards(boards);
+  }, [boards]);
+
+  const board = boards.find((b) => b.id === boardId);
 
   if (!board) {
     return (
@@ -30,13 +37,13 @@ function BoardPage() {
     );
   }
 
-  function handleAddKudo(kudo: Kudo) {
-    dispatch({ type: "added", kudo }); // 👀 Dispatch instead of setState
-  }
+  const handleAddKudo = (kudo: Kudo) => {
+    dispatch({ type: "kudo_added", boardId: board.id, kudo });
+  };
 
-  function handleDeleteKudo(id: string) {
-    dispatch({ type: "deleted", id }); // 👀 New: delete action
-  }
+  const handleDeleteKudo = (kudoId: string) => {
+    dispatch({ type: "kudo_deleted", boardId: board.id, kudoId });
+  };
 
   return (
     <div>
@@ -44,17 +51,17 @@ function BoardPage() {
       <p className="mb-6 text-muted-foreground">{board.description}</p>
       <AddKudoForm onAdd={handleAddKudo} />
 
-      {kudos.length === 0 ? (
+      {board.kudos.length === 0 ? (
         <p className="text-muted-foreground">
           No kudos yet. Be the first to add one!
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {kudos.map((kudo) => (
+          {board.kudos.map((kudo) => (
             <KudoCard
               key={kudo.id}
               kudo={kudo}
-              onDelete={() => handleDeleteKudo(kudo.id)} // 👀
+              onDelete={() => handleDeleteKudo(kudo.id)}
             />
           ))}
         </div>
@@ -62,7 +69,6 @@ function BoardPage() {
     </div>
   );
 }
-
 
 
 //$ prefix to represent dynamic segments in URL
